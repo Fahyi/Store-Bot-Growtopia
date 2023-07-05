@@ -4,15 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node app.js"
+    "test": "node app.js",
+    "build": "ncc build  -o build/lib ./src/index.js && pkg --target node16-win-x64 -o build/MY-API.exe ./build/lib/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.11.0",
+    "dotenv": "^16.3.1",
     "fs": "^0.0.1-security",
     "mongoose": "^7.2.4",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "pkg": "^5.8.1"
   }
 }
