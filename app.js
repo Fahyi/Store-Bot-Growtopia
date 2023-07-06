@@ -205,35 +205,6 @@ client.on("messageCreate", async (e) => {
                     }
                     break
 
-                case "changedepo":
-                    if (e.member.roles.cache.has(roleAdmin)) {
-                        if (args.length > 4 || args[3] === undefined) return e.reply({embeds: [commandError]})
-
-                        async function worldDepo() {
-                            const world = await depo.findOne({})
-
-                            if (world) {
-                                world.world = args[1].toUpperCase()
-                                world.owner = args[2]
-                                world.bot = args[3]
-                                world.save()
-                                return e.reply(`Succsess change Deposit Information`)
-                            }
-
-                            const newDepoWorld = new depo({
-                                world: args[1].toUpperCase(),
-                                owner: args[2],
-                                bot: args[3]
-                            })
-
-                            newDepoWorld.save()
-                            return e.reply(`Succsess change Deposit Information`)
-                        }
-
-                        return worldDepo()
-                    }
-                    break
-
                 case "changeprice":
                     if (e.member.roles.cache.has(roleAdmin)) {
                         if (args[2] === undefined || args.length > 3) return e.reply({embeds: [commandError]})
