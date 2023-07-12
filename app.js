@@ -474,7 +474,7 @@ client.on("messageCreate", async (e) => {
 
                     const depoWorld = await depo.findOne({})
 
-                    if (depoWorld.length === 0 || !depoWorld) return
+                    if (!depoWorld) return e.reply("Depo world not set yet")
 
                     const embed = new EmbedBuilder()
                         .setColor(0x0099ff)
