@@ -1,8 +1,5 @@
 const {
-    Client,
-    IntentsBitField,
-    Intents,
-    EmbedBuilder, Attachment, AttachmentBuilder
+    Client, IntentsBitField, Intents, EmbedBuilder, Attachment, AttachmentBuilder
 } = require("discord.js");
 const mongoose = require("mongoose");
 const fs = require("fs")
@@ -15,25 +12,30 @@ const dotenv = require("dotenv")
 dotenv.config()
 
 const prefix = ".";
+const deleteTicket = true
+
 let isMt = false
 
 //connection-setup
-const mongodbToken = process.env.MONGODB_TOKEN 
+const mongodbToken = process.env.MONGODB_TOKEN
 const discordToken = process.env.DISCORD_TOKEN
 
-//roles
+//role
 const roleAdmin = process.env.ROLE_ADMIN
-const roleBuyyer = process.env.ROLE_BUYYER
 
-//image
-const banner = process.env.BANNER 
+//image - emoji
+const banner = process.env.BANNER
 const emojiWL = process.env.EMOJI_WL
-const emojiSad = process.env.EMOJI_NON_STOCK 
+const emojiSaweria = process.env.EMOJI_SAWERIA
+const emojiOnline = process.env.EMOJI_ONLINE
+const emojiOffline = process.env.EMOJI_OFFLINE
+const emojiSad = process.env.EMOJI_NON_STOCK
 const emojiHappy = process.env.EMOJI_STOCK
 const arrow = process.env.EMOJI_ARROW_STOCK
 
 //channel-id
-const idChannelTopUp = process.env.CHANNEL_ID_TOPUP
+const donationId = process.env.CHANNEL_ID_DONATION_BOX
+const saweriaId = process.env.CHANNEL_ID_SAWERIA
 const buyyerHistoryChannel = process.env.CHANNEL_ID_HISTORY
 
 mongoose
@@ -42,12 +44,7 @@ mongoose
     .catch((err) => console.log(err));
 
 const client = new Client({
-    intents: [
-        IntentsBitField.Flags.Guilds,
-        IntentsBitField.Flags.GuildMessages,
-        IntentsBitField.Flags.GuildMembers,
-        IntentsBitField.Flags.MessageContent,
-    ],
+    intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.MessageContent,],
 });
 
 client.on("guildMemberRemove", async (e) => {
@@ -58,19 +55,19 @@ client.on("guildMemberRemove", async (e) => {
 
 client.on("messageCreate", async (e) => {
     if (e.content) return;
-    if (idChannelTopUp === e.channelId) {
+    if (donationId === e.channelId) {
         const arg = e.embeds[0].data.description.split(":");
-        const userGrowID = arg[1].split(" "); //const userItem = arg[2].trim().split(/(\d+)/);
 
+        const userGrowID = arg[1].split(" "); //const userItem = arg[2].trim().split(/(\d+)/);
+        console.log(userGrowID)
         if (arg[2].includes("Lock")) {
-            const findGrowID = await User.findOne({growID: String(userGrowID[1])});
+            const regexPattern = new RegExp(`^${String(userGrowID[1])}$`, "i");
+            const findGrowID = await User.findOne({growID: regexPattern});
             const newArg = arg[2].replace(/\s+/g, " ").trim().split(" ");
             switch (newArg[2]) {
                 case "Lock":
-                    if (!findGrowID) return;
-                    const updateBalance = await User.findOne({
-                        growID: String(userGrowID[1]),
-                    });
+                    if (!findGrowID) return e.reply("user not found in db");
+                    const updateBalance = await User.findOne({growID: regexPattern});
                     const user = await client.users.fetch(updateBalance.userId);
                     switch (newArg[1]) {
                         case "World":
@@ -79,23 +76,17 @@ client.on("messageCreate", async (e) => {
                             const newBalanceWL = await User.findOne({
                                 growID: String(userGrowID[1]),
                             });
-                            user.send(
-                                `Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`
-                            );
+                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
                             break;
                         case "Diamond":
                             updateBalance.balance += Number(newArg[0]) * 100;
                             updateBalance.save();
-                            user.send(
-                                `Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`
-                            );
+                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
                             break;
                         case "Gem":
                             updateBalance.balance += Number(newArg[0]) * 1000;
                             updateBalance.save();
-                            user.send(
-                                `Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`
-                            );
+                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
                             break;
                     }
             }
@@ -105,6 +96,7 @@ client.on("messageCreate", async (e) => {
 
 client.on("messageCreate", async (e) => {
     if (e.author.bot) return
+
     async function command() {
 
         const roleAdded = new EmbedBuilder()
@@ -158,22 +150,18 @@ client.on("messageCreate", async (e) => {
             .setDescription(`You dont have enough Balance!`);
 
         if (e.content.startsWith(prefix)) {
-            for (let i = 0; i < args.length; i++) {
-                if (args[i].includes("/"))
-                    return e.reply({embeds: [commandError]});
-            }
-
             const userExist = await User.findOne({userId: e.author.id});
             switch (args[0]) {
 
                 case "mt":
-                    if (isMt === true) {
-                        isMt = false
-                        return e.reply("MT mode 🔴")
+                    if (e.member.roles.cache.has(roleAdmin)) {
+                        if (isMt === true) {
+                            isMt = false
+                            return e.reply("MT mode 🔴")
+                        }
+                        isMt = true
+                        return e.reply("MT mode 🟢")
                     }
-                    isMt = true
-                    return e.reply("MT mode 🟢")
-
                     break
 
                 case "changedepo":
@@ -192,9 +180,7 @@ client.on("messageCreate", async (e) => {
                             }
 
                             const newDepoWorld = new depo({
-                                world: args[1].toUpperCase(),
-                                owner: args[2],
-                                bot: args[3]
+                                world: args[1].toUpperCase(), owner: args[2], bot: args[3]
                             })
 
                             newDepoWorld.save()
@@ -207,10 +193,7 @@ client.on("messageCreate", async (e) => {
 
                 case "changeprice":
                     if (e.member.roles.cache.has(roleAdmin)) {
-                        if (args[2] === undefined || args.length > 3) return e.reply({embeds: [commandError]})
-
-                        const isNumber = /^\d+$/.test(Number(args[2]));
-                        if (!isNumber) return e.reply(`${args[2]} isnt number!`)
+                        if (args[2] === undefined || args.length > 3 || isNaN(args[1]) === true) return e.reply({embeds: [productCode]})
 
                         async function changeProductPrice(harga) {
                             const product = await Stock.findOne({type: args[1]})
@@ -220,7 +203,7 @@ client.on("messageCreate", async (e) => {
                             product.price = harga
                             product.save()
 
-                            return e.reply(`Succsessfull change product Price into **${args[2]}** ${emojiWL}`)
+                            return e.reply(`Succsessfully change product Price into **${args[2]}** ${emojiWL}`)
                         }
 
                         return changeProductPrice(Number(args[2]))
@@ -240,7 +223,7 @@ client.on("messageCreate", async (e) => {
                             product.nameProduct = restName.join(" ")
                             product.save()
 
-                            return e.reply(`Succsessfull change product name into **${restName.join(" ")}**`)
+                            return e.reply(`Succsessfully change product name into **${restName.join(" ")}**`)
                         }
 
                         return changeProductName()
@@ -248,29 +231,27 @@ client.on("messageCreate", async (e) => {
                     break
 
                 case "addp":
-                    console.log(e)
                     if (e.member.roles.cache.has(roleAdmin)) {
-                        if (args.length > 4 || args[3] === undefined) return e.reply({embeds: [productCode]})
+                        if (args.length > 5 || args[4] === undefined) return e.reply({embeds: [productCode]})
 
                         const isNumber = /^\d+$/.test(Number(args[3]));
+                        const regex = new RegExp(`${args[2]}`, `i`)
                         if (!isNumber) return e.reply(`${args[3]} isnt number!`)
 
                         async function addProduct(harga) {
-                            const product = await Stock.findOne({type: args[2]})
+                            const product = await Stock.findOne({type: regex})
 
-                            if (product) return e.reply("Please use another unique code ")
+                            if (product) return e.reply("Please use another unique code")
 
                             const addNewProduct = new Stock({
-                                nameProduct: args[1],
-                                type: args[2],
-                                price: harga
+                                nameProduct: args[1], type: args[2], price: harga, role: args[4]
                             })
 
                             addNewProduct.save()
-                            return e.reply(`Successfully add new product!\nName: ${args[1]}\nCode: ${args[2]}\nPrice: ${args[3]}`)
+                            return e.reply(`Successfully add new product!\nName: ${args[1]}\nCode: ${args[2]}\nPrice: ${args[3]}\nrole: ${args[4]}`)
                         }
 
-                        return addProduct(Number(args[3]))
+                        return addProduct(parseInt(args[3]))
                     }
                     break
 
@@ -279,11 +260,23 @@ client.on("messageCreate", async (e) => {
                         if (args.length > 2 || args[1] === undefined) return e.reply({embeds: [productCode]})
 
                         async function removeProduct(harga) {
-                            const product = await Stock.findOneAndDelete({type: args[1]})
+                            const productLeft = await Stock.findOne({type: args[1]})
+                            const user = await client.users.fetch(e.author.id);
 
-                            if (!product) return e.reply("Please input valid code ")
+                            if (!productLeft) return e.reply("Please input valid code ")
 
-                            return e.reply(`Successfully delete product`)
+                            const stockLeft = productLeft.product.splice(0, productLeft.product.length)
+
+                            console.log(stockLeft)
+                            console.log(productLeft.product.length)
+
+                            stockLeft.length === 0 ? "" : user.send(`You have ${productLeft.nameProduct} Stock left\n${stockLeft.map(a => `${a}\n\n`).join("")}`)
+
+                            const productDelete = await Stock.findOneAndDelete({type: args[1]})
+
+                            if (!productDelete) return e.reply("Please input valid code ")
+
+                            return e.reply(`Succsessfully delete product`)
                         }
 
                         return removeProduct()
@@ -297,6 +290,17 @@ client.on("messageCreate", async (e) => {
 
                             if (!addStock) return e.reply("Please input valid Code")
 
+                            if(e.attachments) {
+                                const file = e.attachments.map(a => a.attachment)
+
+                                for (let i = 0; i < file.length; i++) {
+                                    addStock.product.push(file[i])
+                                }
+
+                                addStock.save()
+                                return e.reply(`Succsessfully added Stock into **${args[1]}**`);
+                            }
+
                             for (let i = 2; i < args.length; i++) {
                                 const splitted = args[i].split("\n");
                                 for (let z = 0; z < splitted.length; z++) {
@@ -304,7 +308,7 @@ client.on("messageCreate", async (e) => {
                                 }
                             }
                             addStock.save()
-                            return e.reply(`Sucsessfully added Stock into **${args[1]}**`);
+                            return e.reply(`Succsessfully added Stock into **${args[1]}**`);
 
                         })();
                     } else return e.reply("nope");
@@ -335,16 +339,14 @@ client.on("messageCreate", async (e) => {
                             const files = fs.writeFileSync('./productInformation/result.txt', final, {flag: 'a+'}, (err) => console.error)
                             await user.send({
                                 files: [{
-                                    attachment: "./productInformation/result.txt",
-                                    name: "result.txt"
+                                    attachment: "./productInformation/result.txt", name: "result.txt"
                                 }]
                             })
                             fs.unlinkSync("./productInformation/result.txt")
 
                             const gift = new EmbedBuilder()
                                 .setTitle(`Gift from ${e.author.username} :gift:`)
-                                .setDescription(
-                                    `You have Gifted ${findProduct.nameProduct}!`)
+                                .setDescription(`You have Gifted ${findProduct.nameProduct}!`)
                                 .setImage(banner)
                                 .setColor(0x0099ff)
 
@@ -388,10 +390,10 @@ client.on("messageCreate", async (e) => {
                             const changeDepo = await depo.findOne({})
                             changeDepo.world = "NUKED!"
                             changeDepo.owner = "NUKED!"
-                            changeDepo.bot = "NUKED!"
+                            changeDepo.bot = `NUKED! ${emojiOffline}`
 
                             changeDepo.save()
-                            return e.reply("Succsess change to mode Nuked")
+                            return e.reply("Succsessfully change to mode Nuked")
                         }
 
                         return modeNuke()
@@ -432,40 +434,53 @@ client.on("messageCreate", async (e) => {
 
                     const help = new EmbedBuilder()
                         .setTitle(`BOT COMMANDS`)
-                        .setDescription(
-                            `.help\n.set <growId>\n.bal\n.depo\n.info\n.stock\n.buy <**CODE**> <ammount>\n`
-                        )
+                        .setFields({
+                            name: "Command List",
+                            value: `.help\n.set <growId>\n.bal\n.depo\n.info\n.stock\n.buy <**code**> <ammount>\n`
+                        })
                         .setColor(0x0099ff)
                         .setImage(banner);
+
+                    if (e.member.roles.cache.has(roleAdmin)) {
+                        help
+                            .setFields(
+                                {
+                                    name: "Admin Commands",
+                                    value: `.changename <code> <newname>\n.changedepo <world> <owner> <bot>\n.changeprice <code> <price>\n.addp <product-name> <code> <price>\n.removep <code>\n.adds <code> <stock>\n.nuke\n.mt\n.send <mention-user> <code> <ammount>\n.addbal <mention-user> <ammount>\n.removebal <mention-user> <ammount>`
+                                },
+                                {
+                                    name: "Costumer Commands",
+                                    value: `.help\n.set <growId>\n.bal\n.depo\n.info\n.stock\n.buy <**code**> <ammount>\n`
+                                }
+                            )
+                        return e.reply({embeds: [help]});
+                    }
 
                     return e.reply({embeds: [help]});
                     break
 
                 case "info":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 1) return e.reply({embeds: [productCode]});
 
-                    if (!userExist) return e.reply({embeds: [setError]});
-
-                async function displayUserInformation() {
                     const findUser = await User.findOne({userId: e.author.id});
                     const {growID, balance} = findUser;
-                    try {
+                    userInformation
+                        .setColor(0x0099ff)
+                        .setTitle(`${e.author.username} Information`)
+                        .setDescription(`GrowID: ${growID}\nBalance: ${balance} ${emojiWL}`);
+
+                    if (args.length === 2 && e.author.id === roleAdmin) {
+                        const findByAdmin = await User.findOne({userId: args[1].replace(/[<>\ @]/g, "")})
                         userInformation
-                            .setColor(0x0099ff)
-                            .setTitle(`${e.author.username} Information`)
-                            .setDescription(
-                                `GrowID: ${growID}\nBalance: ${balance} ${emojiWL}`
-                            );
-
-
-                        return e.reply({embeds: [userInformation]});
-                    } catch (err) {
-                        console.error(err);
+                            .setDescription(`GrowID: ${findByAdmin.growID}\nBalance: ${findByAdmin.balance} ${emojiWL}`);
+                        return e.reply({embeds: [userInformation]})
                     }
-                }
 
-                    return displayUserInformation();
+                    if (args.length > 1) return e.reply({embeds: [productCode]})
+                    if (!userExist) return e.reply({embeds: [setError]});
+
+                    return e.reply({embeds: [userInformation]});
+
                     break
 
                 case "depo":
@@ -474,15 +489,13 @@ client.on("messageCreate", async (e) => {
 
                     const depoWorld = await depo.findOne({})
 
-                    if (!depoWorld) return e.reply("Depo world not set yet")
+                    if (!depoWorld || depoWorld.length === 0) return
 
                     const embed = new EmbedBuilder()
                         .setColor(0x0099ff)
-                        .addFields(
-                            {name: "World:", value: depoWorld.world, inline: true},
-                            {name: "Owner:", value: depoWorld.owner, inline: true},
-                            {name: "Bot Name:", value: depoWorld.bot, inline: true},
-                        )
+                        .addFields({name: "World:", value: depoWorld.world, inline: true}, {
+                            name: "Owner:", value: depoWorld.owner, inline: true
+                        }, {name: "Bot Name:", value: depoWorld.bot + " " + emojiOnline, inline: true},)
                         .setImage(banner)
                         .setTimestamp()
 
@@ -501,7 +514,7 @@ client.on("messageCreate", async (e) => {
                         const dataBalance = String(findUserBalance.balance);
 
                         const embed = new EmbedBuilder()
-                            .setTitle(`Balance: ${dataBalance} ${emojiWL}`)
+                            .setTitle(`Balance ${dataBalance} ${emojiWL}`)
                             .setColor(0x0099ff);
 
                         return e.reply({embeds: [embed]});
@@ -516,11 +529,12 @@ client.on("messageCreate", async (e) => {
                 case `set`:
                     if (isMt === true) return e.reply({embeds: [maintanace]})
                     if (args.length > 2) return e.reply({embeds: [commandError]})
+                    const regexPattern = new RegExp(`^${String(args[1])}$`, "i");
 
                 async function displayUser() {
                     const embed = new EmbedBuilder()
                         .setTitle(`Succsessfully`)
-                        .setDescription(`Set GrowID to: ${args[1]}\nmake sure the upper or lower case is the same as your growid!`)
+                        .setDescription(`Set GrowID to: ${args[1]}`)
                         .setColor(0x5cff21);
 
                     const findUserGrowID = await User.findOne({
@@ -529,12 +543,12 @@ client.on("messageCreate", async (e) => {
 
                     if (!args[1]) return e.reply({embeds: [productCode]});
 
-                    const checkIfOtherUser = await User.find({growID: args[1]});
+                    const checkIfOtherUser = await User.find({growID: regexPattern});
+                    console.log(checkIfOtherUser)
                     if (!findUserGrowID) {
                         if (checkIfOtherUser.length === 0) {
                             const CreateUser = new User({
-                                userId: e.author.id,
-                                growID: args[1],
+                                userId: e.author.id, growID: args[1],
                             });
 
                             CreateUser.save();
@@ -542,8 +556,7 @@ client.on("messageCreate", async (e) => {
                         }
                     }
 
-                    if (checkIfOtherUser.length > 0)
-                        return e.reply({embeds: [nameTaken]});
+                    if (checkIfOtherUser.length > 0) return e.reply({embeds: [nameTaken]});
 
                     if (findUserGrowID.growID !== args[1]) {
                         findUserGrowID.growID = args[1];
@@ -557,72 +570,64 @@ client.on("messageCreate", async (e) => {
 
                 case "buy":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 3 || args[2] === undefined) return e.reply({embeds: [productCode]})
-
-                    const isNumber = /^\d+$/.test(Number(args[2]));
-
-                    if (!isNumber) return e.reply({embeds: [productCode]});
+                    if (args.length > 3 || args[2] === undefined || isNaN(args[2] === true)) return e.reply({embeds: [productCode]})
                     if (!userExist) return e.reply({embeds: [setError]})
-                    if (parseInt(args[2]) <= 0)
-                        return e.reply("Ammount Items must be above 1")
+                    if (parseInt(args[2]) <= 0) return e.reply("Ammount Items must be above 1")
 
                 async function penjumlahan(jumlah, idUser) {
+                    const nameFile = Math.floor(Math.random() * 100);
                     const findUser = await User.findOne({userId: e.author.id});
+                    const regexp = new RegExp(`${args[1]}`, `i`)
 
                     if (!findUser || findUser.length === 0) return e.reply({embeds: [setError]});
 
                     const balanceCheck = findUser.balance;
-                    const stockCheck = await Stock.findOne({type: args[1]});
+                    const stockCheck = await Stock.findOne({type: regexp});
 
                     if (!stockCheck || stockCheck.length === 0) return e.reply("Invalid product Code");
-                    if (stockCheck.product.length < jumlah)
-                        return e.reply({embeds: [soldOut]});
+                    if (stockCheck.product.length < jumlah) return e.reply({embeds: [soldOut]});
 
                     const hasilAkhir = jumlah * stockCheck.price;
 
-                    if (balanceCheck < hasilAkhir)
-                        return e.reply({embeds: [balanceMinus]});
+                    if (balanceCheck < hasilAkhir) return e.reply({embeds: [balanceMinus]});
 
                     const raw = stockCheck.product.splice(0, jumlah);
+                    console.log(raw[0])
                     const final = `Here's your Order:\n\n${raw.map(a => `${a}\n`).join("")}`
 
                     stockCheck.save();
 
                     const user = await client.users.fetch(idUser);
-                    const files = fs.writeFileSync('./productInformation/result.txt', final, {flag: 'a+'}, (err) => console.error)
-                    await user.send({files: [{attachment: "./productInformation/result.txt", name: "result.txt"}]})
-                    fs.unlinkSync("./productInformation/result.txt")
+                    const files = fs.writeFileSync(`./productInformation/${nameFile}.txt`, final, {flag: 'a+'}, (err) => console.error)
 
+                    await user.send({
+                        files: [{
+                            attachment: `./productInformation/${nameFile}.txt`, name: `${nameFile}.txt`
+                        }]
+                    })
+
+                    fs.unlinkSync(`./productInformation/${nameFile}.txt`)
 
                     //sending to DM
 
-                    await User.findOneAndUpdate(
-                        {userId: findUser.userId},
-                        {
-                            $set: {
-                                balance: findUser.balance - hasilAkhir,
-                            },
+                    await User.findOneAndUpdate({userId: findUser.userId}, {
+                        $set: {
+                            balance: findUser.balance - hasilAkhir,
                         },
-                        {new: true}
-                    );
+                    }, {new: true});
 
-                    async function embedProduk(title) {
-                        const rolebyIdMessage = e.member.roles.cache.has(roleBuyyer);
-                        const newStock = await Stock.findOne({type: args[1]})
+                    async function embedProduk(title, callback) {
+                        const rolebyIdMessage = e.member.roles.cache.has(stockCheck.role.replace(/[<>\ @ \ &]/g, ""));
+                        const newStock = await Stock.findOne({type: regexp})
 
                         if (!newStock) return
 
                         const dataHistory = {
-                            buyyer: e.author.id,
-                            product: `${title}`,
-                            totalProduct: jumlah,
-                            totalPrice: hasilAkhir,
+                            buyyer: e.author.id, product: `${title}`, totalProduct: jumlah, totalPrice: hasilAkhir,
                         };
                         const embed = new EmbedBuilder()
                             .setTitle(`Purchase ${newStock.nameProduct}`)
-                            .setDescription(
-                                `${arrow} Buyyer: <@${dataHistory.buyyer}>\n${arrow} Product Name : ${newStock.nameProduct}\n${arrow} Product Code : **${dataHistory.product}**\n${arrow} Ammount : ${jumlah}\n${arrow} Total Price : ${dataHistory.totalPrice} ${emojiWL}`
-                            )
+                            .setDescription(`${arrow} Buyyer: <@${dataHistory.buyyer}>\n${arrow} Product Name : ${newStock.nameProduct}\n${arrow} Product Code : **${dataHistory.product}**\n${arrow} Ammount : ${jumlah}\n${arrow} Total Price : ${dataHistory.totalPrice} ${emojiWL}`)
                             .setImage(banner)
                             .setTimestamp()
                             .setColor(0x0099ff);
@@ -637,12 +642,10 @@ client.on("messageCreate", async (e) => {
 
                         transcationSendToUser
                             .setTitle("Succsessfull Purchase")
-                            .setDescription(
-                                `You have purchased ${jumlah} ${newStock.nameProduct} for ${hasilAkhir} ${emojiWL}\nDon't forget to give reps, Thanks. New Stock: ${newStock.product.length} Left!`)
-                            .addFields(
-                                {name: "Name:", value: newStock.nameProduct, inline: true},
-                                {name: "Message:", value: "Thank you!", inline: true},
-                            )
+                            .setDescription(`You have purchased ${jumlah} ${newStock.nameProduct} for ${hasilAkhir} ${emojiWL}\nDon't forget to give reps, Thanks. New Stock: ${newStock.product.length} Left!`)
+                            .addFields({name: "Name:", value: newStock.nameProduct, inline: true}, {
+                                name: "Message:", value: "Thank you!", inline: true
+                            },)
                             .setImage(banner)
                             .setColor(0x0099ff)
 
@@ -653,17 +656,23 @@ client.on("messageCreate", async (e) => {
                             roleAdded
                                 .setColor(0x0099ff)
                                 .setTitle("New Role")
-                                .setDescription(`${e.author.username} Welcome to <@&${roleBuyyer}>`)
+                                .setDescription(`${e.author.username} Welcome to ${newStock.role}`)
 
-                            await e.member.roles.add(roleBuyyer)
+                            await e.member.roles.add(newStock.role.replace(/[<>\ @ \ &]/g, ""))
 
                             e.reply({embeds: [roleAdded]})
                         }
-
                         await user.send({embeds: [transcationSendToUser]})
 
+                        e.reply({embeds: [succsessTransaction]});
 
-                        return e.reply({embeds: [succsessTransaction]});
+                        if (deleteTicket && e.channel.name.startsWith("ticket")) {
+                            e.reply("Channel will be delete in 10 Sec..")
+                            setTimeout(() => {
+                                e.channel.delete()
+                            }, 10000)
+                        }
+
                     }
 
                     return embedProduk(stockCheck.type);
@@ -682,10 +691,9 @@ client.on("messageCreate", async (e) => {
                         .setColor(0x0099ff)
                         .setTitle("LIST PRODUCTS")
                         .setImage(banner)
-                        .setDescription(stock.length === 0 ? "Add your product using **.addp**" : String(stock.map(a => `\nName: ${a.nameProduct}\nCode: **${a.type}**\nStock: ${a.product.length} ${a.product.length === 0 ? emojiSad : emojiHappy}\nPrice: ${a.price} ${emojiWL}\n`).join("")))
+                        .setDescription(stock.length === 0 ? "Add your product using **.addp**" : String(stock.map(a => `\nName: ${a.nameProduct}\nCode: **${a.type}**\nStock: ${a.product.length} ${a.product.length === 0 ? emojiSad : emojiHappy}\nPrice WL: ${a.price} ${emojiWL} ${a?.priceSaweria === undefined ? `` : `\nPrice Saweria: ${a.priceSaweria}`}\n`).join("")))
                         .setFooter({text: "Requested by" + " " + e.author.username, iconURL: e.author.avatarURL()})
                         .setTimestamp();
-
 
                     return e.channel.send({embeds: [listProduct]});
                     break
@@ -701,4 +709,9 @@ client.on("messageCreate", async (e) => {
     return command()
 })
 
-client.login(discordToken);
+client.login(discordToken)
+    .then(token => {
+        client.user.setPresence({
+            game: {name: `${prefix}help`}, status: 'online',
+        })
+    })
