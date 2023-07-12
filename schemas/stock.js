@@ -14,7 +14,11 @@ const stockInformation = mongoose.Schema({
     type: {
         type: String,
         require: true
-    } //code
+    }, //code
+    role: {
+        type: String
+        require: true
+    }
 }
 )
 
