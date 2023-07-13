@@ -199,7 +199,6 @@ client.on("messageCreate", async (e) => {
 
                 case "changename":
                     if (e.member.roles.cache.has(roleAdmin)) {
-                        if ( args.length > 3 || args[2] === undefined) return e.reply({embeds: [productCode]})
 
                         async function changeProductName(harga) {
                             const product = await Stock.findOne({type: args[1]})
@@ -272,12 +271,13 @@ client.on("messageCreate", async (e) => {
 
                 case "adds":
                     if (e.member.roles.cache.has(roleAdmin)) {
+                        if(args.length < 3 && e.attachments.size === 0) return e.reply({embeds: [productCode]})                        
                         await (async () => {
                             const addStock = await Stock.findOne({type: args[1]});
 
                             if (!addStock) return e.reply("Please input valid Code")
                             console.log(e)
-                            if(e.attachments.length > 0) {
+                            if(e.attachments.size > 0) {
                                 console.log("in attachments")
                                 const file = e.attachments.map(a => a.attachment)
 
