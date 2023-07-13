@@ -26,7 +26,6 @@ const roleAdmin = process.env.ROLE_ADMIN
 //image - emoji
 const banner = process.env.BANNER
 const emojiWL = process.env.EMOJI_WL
-const emojiSaweria = process.env.EMOJI_SAWERIA
 const emojiOnline = process.env.EMOJI_ONLINE
 const emojiOffline = process.env.EMOJI_OFFLINE
 const emojiSad = process.env.EMOJI_NON_STOCK
@@ -35,7 +34,6 @@ const arrow = process.env.EMOJI_ARROW_STOCK
 
 //channel-id
 const donationId = process.env.CHANNEL_ID_DONATION_BOX
-const saweriaId = process.env.CHANNEL_ID_SAWERIA
 const buyyerHistoryChannel = process.env.CHANNEL_ID_HISTORY
 
 mongoose
@@ -49,7 +47,7 @@ const client = new Client({
 
 client.on("guildMemberRemove", async (e) => {
     console.log(e)
-    const exitPlayer = await User.deleteOne({userId: e.user.id});
+    await User.deleteOne({userId: e.user.id});
     return console.log("deleted from DB")
 });
 
@@ -57,9 +55,13 @@ client.on("messageCreate", async (e) => {
     if (e.content) return;
     if (donationId === e.channelId) {
         const arg = e.embeds[0].data.description.split(":");
-
+        const mataUang = {
+            "World": 1,    
+            "Diamond": 100,
+            "Gem": 1000,
+        }
         const userGrowID = arg[1].split(" "); //const userItem = arg[2].trim().split(/(\d+)/);
-        console.log(userGrowID)
+
         if (arg[2].includes("Lock")) {
             const regexPattern = new RegExp(`^${String(userGrowID[1])}$`, "i");
             const findGrowID = await User.findOne({growID: regexPattern});
@@ -69,26 +71,11 @@ client.on("messageCreate", async (e) => {
                     if (!findGrowID) return e.reply("user not found in db");
                     const updateBalance = await User.findOne({growID: regexPattern});
                     const user = await client.users.fetch(updateBalance.userId);
-                    switch (newArg[1]) {
-                        case "World":
-                            updateBalance.balance += Number(newArg[0]);
-                            updateBalance.save();
-                            const newBalanceWL = await User.findOne({
-                                growID: String(userGrowID[1]),
-                            });
-                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
-                            break;
-                        case "Diamond":
-                            updateBalance.balance += Number(newArg[0]) * 100;
-                            updateBalance.save();
-                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
-                            break;
-                        case "Gem":
-                            updateBalance.balance += Number(newArg[0]) * 1000;
-                            updateBalance.save();
-                            user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
-                            break;
-                    }
+                        
+                    updateBalance.balance += Number(newArg[0]) * mataUang[newArg[1]]
+                    updateBalance.save()
+
+                    user.send(`Succsessfully Added **${newArg[0]} ${newArg[1]} ${newArg[2]}** ${emojiWL}\nNow your balance is **${updateBalance.balance}** ${emojiWL}`);
             }
         }
     }
@@ -193,7 +180,7 @@ client.on("messageCreate", async (e) => {
 
                 case "changeprice":
                     if (e.member.roles.cache.has(roleAdmin)) {
-                        if (args[2] === undefined || args.length > 3 || isNaN(args[1]) === true) return e.reply({embeds: [productCode]})
+                        if ( args.length > 3 || args[2] === undefined || isNaN(args[2]) === true) return e.reply({embeds: [productCode]})
 
                         async function changeProductPrice(harga) {
                             const product = await Stock.findOne({type: args[1]})
@@ -212,7 +199,7 @@ client.on("messageCreate", async (e) => {
 
                 case "changename":
                     if (e.member.roles.cache.has(roleAdmin)) {
-                        if (args[2] === undefined) return e.reply({embeds: [productCode]})
+                        if ( args.length > 3 || args[2] === undefined) return e.reply({embeds: [productCode]})
 
                         async function changeProductName(harga) {
                             const product = await Stock.findOne({type: args[1]})
@@ -289,8 +276,9 @@ client.on("messageCreate", async (e) => {
                             const addStock = await Stock.findOne({type: args[1]});
 
                             if (!addStock) return e.reply("Please input valid Code")
-
-                            if(e.attachments) {
+                            console.log(e)
+                            if(e.attachments.length > 0) {
+                                console.log("in attachments")
                                 const file = e.attachments.map(a => a.attachment)
 
                                 for (let i = 0; i < file.length; i++) {
@@ -598,7 +586,7 @@ client.on("messageCreate", async (e) => {
                     stockCheck.save();
 
                     const user = await client.users.fetch(idUser);
-                    const files = fs.writeFileSync(`./productInformation/${nameFile}.txt`, final, {flag: 'a+'}, (err) => console.error)
+                    fs.writeFileSync(`./productInformation/${nameFile}.txt`, final, {flag: 'a+'}, (err) => console.error)
 
                     await user.send({
                         files: [{
@@ -616,7 +604,7 @@ client.on("messageCreate", async (e) => {
                         },
                     }, {new: true});
 
-                    async function embedProduk(title, callback) {
+                    async function embedProduk(title) {
                         const rolebyIdMessage = e.member.roles.cache.has(stockCheck.role.replace(/[<>\ @ \ &]/g, ""));
                         const newStock = await Stock.findOne({type: regexp})
 
