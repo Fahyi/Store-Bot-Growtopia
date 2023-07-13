@@ -38,12 +38,19 @@ const buyyerHistoryChannel = process.env.CHANNEL_ID_HISTORY
 
 mongoose
     .connect(mongodbToken)
-    .then(() => console.log("connected to DB"))
+    .then(() => console.log("connected to Database"))
     .catch((err) => console.log(err));
 
 const client = new Client({
     intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.MessageContent,],
 });
+
+client.on("ready", (e) => {
+    console.log(`Discord bot online 🟢`)
+    client.user.setActivity({
+        name: `${prefix}help command`
+    })
+})
 
 client.on("guildMemberRemove", async (e) => {
     console.log(e)
@@ -434,7 +441,7 @@ client.on("messageCreate", async (e) => {
                             .setFields(
                                 {
                                     name: "Admin Commands",
-                                    value: `.changename <code> <newname>\n.changedepo <world> <owner> <bot>\n.changeprice <code> <price>\n.addp <product-name> <code> <price>\n.removep <code>\n.adds <code> <stock>\n.nuke\n.mt\n.send <mention-user> <code> <ammount>\n.addbal <mention-user> <ammount>\n.removebal <mention-user> <ammount>`
+                                    value: `.changename <code> <newname>\n.changedepo <world> <owner> <bot>\n.changeprice <code> <price>\n.addp <product-name> <code> <price> <role>\n.removep <code>\n.adds <code> <stock or attachments>\n.nuke\n.mt\n.send <mention-user> <code> <ammount>\n.addbal <mention-user> <ammount>\n.removebal <mention-user> <ammount>`
                                 },
                                 {
                                     name: "Costumer Commands",
@@ -698,8 +705,3 @@ client.on("messageCreate", async (e) => {
 })
 
 client.login(discordToken)
-    .then(token => {
-        client.user.setPresence({
-            game: {name: `${prefix}help`}, status: 'online',
-        })
-    })
