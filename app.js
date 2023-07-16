@@ -38,7 +38,7 @@ const buyyerHistoryChannel = process.env.CHANNEL_ID_HISTORY
 
 mongoose
     .connect(mongodbToken)
-    .then(() => console.log("connected to Database"))
+    .then(() => console.log("connected to DB"))
     .catch((err) => console.log(err));
 
 const client = new Client({
@@ -456,6 +456,7 @@ client.on("messageCreate", async (e) => {
 
                 case "info":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
+                    if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
 
                     const findUser = await User.findOne({userId: e.author.id});
                     const {growID, balance} = findUser;
@@ -501,10 +502,11 @@ client.on("messageCreate", async (e) => {
                 case "bal":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
                     if (args.length > 1) return e.reply({embeds: [commandError]})
-                    if (!userExist) return e.reply({embeds: [setError]});
+                    if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
 
                 async function userBalance() {
                     const findUserBalance = await User.findOne({userId: e.author.id});
+                    if(!findUserBalance) return e.re
                     try {
                         const dataBalance = String(findUserBalance.balance);
 
