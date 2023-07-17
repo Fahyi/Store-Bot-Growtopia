@@ -457,24 +457,24 @@ client.on("messageCreate", async (e) => {
                 case "info":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
                     if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
+                    if(args.length > 2) return e.reply({embeds: [productCode]});
 
-                    const findUser = await User.findOne({userId: e.author.id});
-                    const {growID, balance} = findUser;
+                    const {growID, balance} = userExist;
                     userInformation
                         .setColor(0x0099ff)
                         .setTitle(`${e.author.username} Information`)
                         .setDescription(`GrowID: ${growID}\nBalance: ${balance} ${emojiWL}`);
 
-                    if (args.length === 2 && e.author.id === roleAdmin) {
+                    if (args[1] !== undefined && e.member.roles.cache.has(roleAdmin)) {
                         const findByAdmin = await User.findOne({userId: args[1].replace(/[<>\ @]/g, "")})
+                        if(!findByAdmin) return e.reply("User not found in Database")
                         userInformation
+                            .setTitle(`${e.mentions.users.map(a => a.username)} Information`)
                             .setDescription(`GrowID: ${findByAdmin.growID}\nBalance: ${findByAdmin.balance} ${emojiWL}`);
                         return e.reply({embeds: [userInformation]})
                     }
 
                     if (args.length > 1) return e.reply({embeds: [productCode]})
-                    if (!userExist) return e.reply({embeds: [setError]});
-
                     return e.reply({embeds: [userInformation]});
 
                     break
@@ -485,7 +485,7 @@ client.on("messageCreate", async (e) => {
 
                     const depoWorld = await depo.findOne({})
 
-                    if (!depoWorld || depoWorld.length === 0) return
+                    if (!depoWorld || depoWorld.length === 0) return e.reply("Please set your Depo Information")
 
                     const embed = new EmbedBuilder()
                         .setColor(0x0099ff)
@@ -505,13 +505,9 @@ client.on("messageCreate", async (e) => {
                     if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
 
                 async function userBalance() {
-                    const findUserBalance = await User.findOne({userId: e.author.id});
-                    if(!findUserBalance) return e.re
                     try {
-                        const dataBalance = String(findUserBalance.balance);
-
                         const embed = new EmbedBuilder()
-                            .setTitle(`Balance ${dataBalance} ${emojiWL}`)
+                            .setTitle(`Balance ${userExist.balance} ${emojiWL}`)
                             .setColor(0x0099ff);
 
                         return e.reply({embeds: [embed]});
@@ -525,7 +521,7 @@ client.on("messageCreate", async (e) => {
 
                 case `set`:
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 2) return e.reply({embeds: [commandError]})
+                    if (args.length > 2) return e.reply({embeds: [productCode]})
                     const regexPattern = new RegExp(`^${String(args[1])}$`, "i");
 
                 async function displayUser() {
