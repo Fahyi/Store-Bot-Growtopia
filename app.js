@@ -3,18 +3,20 @@ const {
 } = require("discord.js");
 const mongoose = require("mongoose");
 const fs = require("fs")
+const dotenv = require("dotenv")
+dotenv.config()
+
 const depo = require("./schemas/depo")
 const User = require("./schemas/user");
 const Stock = require("./schemas/stock");
 const History = require("./schemas/history");
-const dotenv = require("dotenv")
-
-dotenv.config()
-
 const prefix = ".";
-const deleteTicket = true
 
-let isMt = false
+const liveStock = true // live stock, if false, user must type .stock to get live stock again
+const ticketOnly = false // user only can transcation in ticket channel only
+const deleteTicket = true // after transcation, bot will automaticlly delete ticket channel
+
+let isMt = false // ignore
 
 //connection-setup
 const mongodbToken = process.env.MONGODB_TOKEN
@@ -24,15 +26,17 @@ const discordToken = process.env.DISCORD_TOKEN
 const roleAdmin = process.env.ROLE_ADMIN
 
 //image - emoji
+const arrowStock = process.env.EMOJI_ARROW
 const banner = process.env.BANNER
 const emojiWL = process.env.EMOJI_WL
 const emojiOnline = process.env.EMOJI_ONLINE
 const emojiOffline = process.env.EMOJI_OFFLINE
 const emojiSad = process.env.EMOJI_NON_STOCK
 const emojiHappy = process.env.EMOJI_STOCK
-const arrow = process.env.EMOJI_ARROW_STOCK
+const arrow = process.env.EMOJI_ARROW_PURCHASE
 
 //channel-id
+const stockId = process.env.CHANNEL_ID_STOCK
 const donationId = process.env.CHANNEL_ID_DONATION_BOX
 const buyyerHistoryChannel = process.env.CHANNEL_ID_HISTORY
 
@@ -44,6 +48,13 @@ mongoose
 const client = new Client({
     intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.MessageContent,],
 });
+
+client.on("ready", (e) => {
+    console.log(`Discord bot online 🟢`)
+    client.user.setActivity({
+        name: `${prefix}help Command`
+    })
+})
 
 client.on("guildMemberRemove", async (e) => {
     console.log(e)
@@ -68,7 +79,7 @@ client.on("messageCreate", async (e) => {
             const newArg = arg[2].replace(/\s+/g, " ").trim().split(" ");
             switch (newArg[2]) {
                 case "Lock":
-                    if (!findGrowID) return e.reply("user not found in db");
+                    if (!findGrowID || mataUang[newArg[1]] === undefined) return e.reply("User or Currency not found in db");
                     const updateBalance = await User.findOne({growID: regexPattern});
                     const user = await client.users.fetch(updateBalance.userId);
                         
@@ -83,7 +94,6 @@ client.on("messageCreate", async (e) => {
 
 client.on("messageCreate", async (e) => {
     if (e.author.bot) return
-
     async function command() {
 
         const roleAdded = new EmbedBuilder()
@@ -96,7 +106,7 @@ client.on("messageCreate", async (e) => {
 
         const succsessTransaction = new EmbedBuilder()
             .setDescription(`Check your DM\n Dont forget to reps ^-^`)
-            .setColor(0xa2ff86);
+            .setColor(0x12c069);
 
         const userInformation = new EmbedBuilder()
 
@@ -113,14 +123,12 @@ client.on("messageCreate", async (e) => {
             .setColor(0xf7d060);
 
         const soldOut = new EmbedBuilder()
-            .setTitle(`${args[1]} out Of Stock!`)
-            .setDescription(`Sorry ${args[1]} Already Sold! Restocked soon..`)
-            .setColor(0xff0202);
+            .setColor(0xdf0238);
 
         const nameTaken = new EmbedBuilder()
             .setTitle("Error")
             .setDescription(`Name ${args[1]} Already taken! Choose another.`)
-            .setColor(0xff0202);
+            .setColor(0xdf0238);
 
         const commandError = new EmbedBuilder()
             .setTitle("Error")
@@ -128,12 +136,12 @@ client.on("messageCreate", async (e) => {
             .setDescription(`Command not found!`);
 
         const setError = new EmbedBuilder()
-            .setColor(0xff0202)
+            .setColor(0xdf0238)
             .setTitle("Error")
             .setDescription(".set <growid> first");
 
         const balanceMinus = new EmbedBuilder()
-            .setColor(0xff0202)
+            .setColor(0xdf0238)
             .setDescription(`You dont have enough Balance!`);
 
         if (e.content.startsWith(prefix)) {
@@ -276,7 +284,6 @@ client.on("messageCreate", async (e) => {
                             const addStock = await Stock.findOne({type: args[1]});
 
                             if (!addStock) return e.reply("Please input valid Code")
-                            console.log(e)
                             if(e.attachments.size > 0) {
                                 console.log("in attachments")
                                 const file = e.attachments.map(a => a.attachment)
@@ -336,7 +343,7 @@ client.on("messageCreate", async (e) => {
                                 .setTitle(`Gift from ${e.author.username} :gift:`)
                                 .setDescription(`You have Gifted ${findProduct.nameProduct}!`)
                                 .setImage(banner)
-                                .setColor(0x0099ff)
+                                .setColor(0x009bff)
 
                             user.send({embeds: [gift]})
                             user.send(String(splicced))
@@ -434,7 +441,7 @@ client.on("messageCreate", async (e) => {
                             .setFields(
                                 {
                                     name: "Admin Commands",
-                                    value: `.changename <code> <newname>\n.changedepo <world> <owner> <bot>\n.changeprice <code> <price>\n.addp <product-name> <code> <price>\n.removep <code>\n.adds <code> <stock>\n.nuke\n.mt\n.send <mention-user> <code> <ammount>\n.addbal <mention-user> <ammount>\n.removebal <mention-user> <ammount>`
+                                    value: `.changename <code> <newname>\n.changedepo <world> <owner> <bot>\n.changeprice <code> <price>\n.addp <product-name> <code> <price> <@role>\n.removep <code>\n.adds <code> <stock or attachments>\n.nuke\n.mt\n.send <mention-user> <code> <ammount>\n.addbal <mention-user> <ammount>\n.removebal <mention-user> <ammount>`
                                 },
                                 {
                                     name: "Costumer Commands",
@@ -449,24 +456,25 @@ client.on("messageCreate", async (e) => {
 
                 case "info":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
+                    if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
+                    if(args.length > 2) return e.reply({embeds: [productCode]});
 
-                    const findUser = await User.findOne({userId: e.author.id});
-                    const {growID, balance} = findUser;
+                    const {growID, balance} = userExist;
                     userInformation
                         .setColor(0x0099ff)
                         .setTitle(`${e.author.username} Information`)
                         .setDescription(`GrowID: ${growID}\nBalance: ${balance} ${emojiWL}`);
 
-                    if (args.length === 2 && e.author.id === roleAdmin) {
+                    if (args[1] !== undefined && e.member.roles.cache.has(roleAdmin)) {
                         const findByAdmin = await User.findOne({userId: args[1].replace(/[<>\ @]/g, "")})
+                        if(!findByAdmin) return e.reply("User not found in Database")
                         userInformation
+                            .setTitle(`${e.mentions.users.map(a => a.username)} Information`)
                             .setDescription(`GrowID: ${findByAdmin.growID}\nBalance: ${findByAdmin.balance} ${emojiWL}`);
                         return e.reply({embeds: [userInformation]})
                     }
 
                     if (args.length > 1) return e.reply({embeds: [productCode]})
-                    if (!userExist) return e.reply({embeds: [setError]});
-
                     return e.reply({embeds: [userInformation]});
 
                     break
@@ -477,7 +485,7 @@ client.on("messageCreate", async (e) => {
 
                     const depoWorld = await depo.findOne({})
 
-                    if (!depoWorld || depoWorld.length === 0) return
+                    if (!depoWorld || depoWorld.length === 0) return e.reply("Owner hasn't set the world depo yet")
 
                     const embed = new EmbedBuilder()
                         .setColor(0x0099ff)
@@ -494,15 +502,12 @@ client.on("messageCreate", async (e) => {
                 case "bal":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
                     if (args.length > 1) return e.reply({embeds: [commandError]})
-                    if (!userExist) return e.reply({embeds: [setError]});
+                    if (!userExist || userExist.length === 0) return e.reply({embeds: [setError]});
 
                 async function userBalance() {
-                    const findUserBalance = await User.findOne({userId: e.author.id});
                     try {
-                        const dataBalance = String(findUserBalance.balance);
-
                         const embed = new EmbedBuilder()
-                            .setTitle(`Balance ${dataBalance} ${emojiWL}`)
+                            .setTitle(`Balance ${userExist.balance} ${emojiWL}`)
                             .setColor(0x0099ff);
 
                         return e.reply({embeds: [embed]});
@@ -516,14 +521,14 @@ client.on("messageCreate", async (e) => {
 
                 case `set`:
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 2) return e.reply({embeds: [commandError]})
+                    if (args.length > 2) return e.reply({embeds: [productCode]})
                     const regexPattern = new RegExp(`^${String(args[1])}$`, "i");
 
                 async function displayUser() {
                     const embed = new EmbedBuilder()
                         .setTitle(`Succsessfully`)
                         .setDescription(`Set GrowID to: ${args[1]}`)
-                        .setColor(0x5cff21);
+                        .setColor(0x12c069);
 
                     const findUserGrowID = await User.findOne({
                         userId: e.author.id,
@@ -558,21 +563,26 @@ client.on("messageCreate", async (e) => {
 
                 case "buy":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 3 || args[2] === undefined || isNaN(args[2] === true)) return e.reply({embeds: [productCode]})
-                    if (!userExist) return e.reply({embeds: [setError]})
-                    if (parseInt(args[2]) <= 0) return e.reply("Ammount Items must be above 1")
+                    else if (args.length > 3 || args[2] === undefined || isNaN(args[2] === true)) return e.reply({embeds: [productCode]})
+                    else if (!userExist) return e.reply({embeds: [setError]})
+                    else if (ticketOnly === true) return e.reply("Create Ticket to use this Command!")
+                    else if (parseInt(args[2]) <= 0) return e.reply("Ammount Items must be above 1")
 
                 async function penjumlahan(jumlah, idUser) {
                     const nameFile = Math.floor(Math.random() * 100);
                     const findUser = await User.findOne({userId: e.author.id});
-                    const regexp = new RegExp(`${args[1]}`, `i`)
 
                     if (!findUser || findUser.length === 0) return e.reply({embeds: [setError]});
 
                     const balanceCheck = findUser.balance;
-                    const stockCheck = await Stock.findOne({type: regexp});
+                    const stockCheck = await Stock.findOne({type: args[1]});
 
                     if (!stockCheck || stockCheck.length === 0) return e.reply("Invalid product Code");
+
+                    soldOut
+                        .setTitle(`${stockCheck.nameProduct} out Of Stock!`)
+                        .setDescription(`Sorry ${stockCheck.nameProduct} Already Sold! Restocked soon..`)
+
                     if (stockCheck.product.length < jumlah) return e.reply({embeds: [soldOut]});
 
                     const hasilAkhir = jumlah * stockCheck.price;
@@ -606,7 +616,7 @@ client.on("messageCreate", async (e) => {
 
                     async function embedProduk(title) {
                         const rolebyIdMessage = e.member.roles.cache.has(stockCheck.role.replace(/[<>\ @ \ &]/g, ""));
-                        const newStock = await Stock.findOne({type: regexp})
+                        const newStock = await Stock.findOne({type: args[1]})
 
                         if (!newStock) return
 
@@ -635,7 +645,7 @@ client.on("messageCreate", async (e) => {
                                 name: "Message:", value: "Thank you!", inline: true
                             },)
                             .setImage(banner)
-                            .setColor(0x0099ff)
+                            .setColor(0x009bff)
 
                         succsessTransaction
                             .setTitle(`Transaction ${newStock.nameProduct} Succsessfull`)
@@ -671,19 +681,41 @@ client.on("messageCreate", async (e) => {
 
                 case "stock":
                     if (isMt === true) return e.reply({embeds: [maintanace]})
-                    if (args.length > 1 || args[0] === undefined) return e.reply({embeds: [productCode]})
+                    else if (args.length > 1 || args[0] === undefined) return e.reply({embeds: [productCode]})
+                    else if (e.member.roles.cache.has(roleAdmin) === false) return e.reply(`You can view stock in <#${stockId}>`)
 
                     const stock = await Stock.find();
                     const listProduct = new EmbedBuilder()
                         .setAuthor({name: e.author.username, iconURL: e.author.avatarURL()})
                         .setColor(0x0099ff)
-                        .setTitle("LIST PRODUCTS")
+                        .setTitle("PRODUCTS STOCKS")
                         .setImage(banner)
-                        .setDescription(stock.length === 0 ? "Add your product using **.addp**" : String(stock.map(a => `\nName: ${a.nameProduct}\nCode: **${a.type}**\nStock: ${a.product.length} ${a.product.length === 0 ? emojiSad : emojiHappy}\nPrice WL: ${a.price} ${emojiWL} ${a?.priceSaweria === undefined ? `` : `\nPrice Saweria: ${a.priceSaweria}`}\n`).join("")))
+                        .setDescription(stock.length === 0 ? "Add your product using **.addp**" : String(stock.map(a => `\n${arrowStock} Name: ${a.nameProduct}\n${arrowStock} Code: **${a.type}**\n${arrowStock} Stock: ${a.product.length} ${a.product.length === 0 ? emojiSad : emojiHappy}\n${arrowStock} Price WL: ${a.price} ${emojiWL} ${a?.priceSaweria === undefined ? `` : `\nPrice Saweria: ${a.priceSaweria}`}\n`).join("")))
                         .setFooter({text: "Requested by" + " " + e.author.username, iconURL: e.author.avatarURL()})
                         .setTimestamp();
 
-                    return e.channel.send({embeds: [listProduct]});
+                    const previous = await e.channel.send({embeds: [listProduct]});
+
+                    if(liveStock === true) {
+                        function updateStock() {
+                            console.log(e.channel.category)
+                            setInterval(async function () {
+                                const newStock = await Stock.find()
+                                const updated = new EmbedBuilder()
+                                    .setAuthor({name: e.author.username, iconURL: e.author.avatarURL()})
+                                    .setColor(0x0099ff)
+                                    .setImage(banner)
+                                    .setTitle("PRODUCTS STOCKS")
+                                    .setDescription(newStock.length === 0 ? "Add your product using **.addp**" : String(newStock.map(a => `\n${arrowStock} Name: ${a.nameProduct}\n${arrowStock} Code: **${a.type}**\n${arrowStock} Stock: ${a.product.length} ${a.product.length === 0 ? emojiSad : emojiHappy}\n${arrowStock} Price WL: ${a.price} ${emojiWL} ${a?.priceSaweria === undefined ? `` : `\nPrice Saweria: ${a.priceSaweria}`}\n`).join("")))
+                                    .setFooter({text: "Requested by" + " " + e.author.username, iconURL: e.author.avatarURL()})
+                                    .setTimestamp();
+
+                                previous.edit({ embeds: [updated] });
+                            }, 10000);
+                        }
+
+                        updateStock()
+                    }
                     break
 
                 default:
@@ -696,10 +728,4 @@ client.on("messageCreate", async (e) => {
 
     return command()
 })
-
 client.login(discordToken)
-    .then(token => {
-        client.user.setPresence({
-            game: {name: `${prefix}help`}, status: 'online',
-        })
-    })
