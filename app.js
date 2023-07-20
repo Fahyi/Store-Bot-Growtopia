@@ -147,7 +147,6 @@ client.on("messageCreate", async (e) => {
         if (e.content.startsWith(prefix)) {
             const userExist = await User.findOne({userId: e.author.id});
             switch (args[0]) {
-
                 case "mt":
                     if (e.member.roles.cache.has(roleAdmin)) {
                         if (isMt === true) {
@@ -710,12 +709,16 @@ client.on("messageCreate", async (e) => {
                                     .setFooter({text: "Requested by" + " " + e.author.username, iconURL: e.author.avatarURL()})
                                     .setTimestamp();
 
-                                previous.edit({ embeds: [updated] });
+                                if(previous.edit({ embeds: [updated] }).catch(() => null)) return
+
+                                previous.edit({ embeds: [updated] })
+
                             }, 10000);
                         }
 
                         updateStock()
                     }
+                    else return
                     break
 
                 default:
